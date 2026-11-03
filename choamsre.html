@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="km">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ប្រព័ន្ធវត្តមាន - អនុវិទ្យាល័យ ជាំស្រែទួលកាច់ផ្កា</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Font Kantumruy Pro -->
+    <link href="https://fonts.googleapis.com/css2?family=Kantumruy+Pro:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Firebase App & Realtime Database SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <style>
+        body { font-family: 'Kantumruy Pro', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col">
+
+    <!-- Top Navigation -->
+    <header class="bg-indigo-600 text-white shadow-md">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <i class="fa-solid fa-school-flag text-2xl"></i>
+                <h1 class="text-lg md:text-xl font-bold">ប្រព័ន្ធស្រង់វត្តមានលោកគ្រូ-អ្នកគ្រូ</h1>
+            </div>
+            <button onclick="toggleConfigModal()" class="bg-indigo-700 hover:bg-indigo-800 px-3 py-1.5 rounded-lg text-sm flex items-center space-x-1.5 transition">
+                <i class="fa-solid fa-gear"></i>
+                <span class="hidden md:inline">កំណត់ប្រព័ន្ធ</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="max-w-7xl mx-auto px-4 py-6 flex-grow w-full grid grid-cols-1 lg:grid-cols-4 gap-6">
+        
+        <!-- Sidebar Navigation -->
+        <aside class="lg:col-span-1 space-y-4">
+            <div class="bg-white rounded-xl shadow-sm p-4 border border-slate-200">
+                <div class="text-center pb-4 border-b border-slate-100">
+                    <div class="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-2xl mx-auto mb-2 font-bold" id="userAvatar">U</div>
+                    <h2 class="font-bold text-lg" id="currentUserName">សូមជ្រើសរើសឈ្មោះ</h2>
+                    <p class="text-xs text-slate-500" id="currentUserSub">គ្រូបង្រៀន</p>
+                </div>
+                <nav class="mt-4 space-y-1">
+                    <button onclick="switchTab('attendance')" id="nav-attendance" class="w-full flex items-center space-x-3 px-4 py-2.5 rounded-lg text-sm font-medium bg-indigo-50 text-indigo-600 transition">
+                        <i class="fa-solid fa-clipboard-user w-5"></i>
+                        <span>ចុះវត្តមានថ្ងៃនេះ</span>
+                    </button>
+                    <button onclick="switchTab('history')" id="nav-history" class="w-full flex items-center space-x-3 px-4 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 transition">
+                        <i class="fa-solid fa-clock-rotate-left w-5"></i>
+                        <span>ប្រវត្តវត្តមាន</span>
+                    </button>
+                    <button onclick="switchTab('teachers')" id="nav-teachers" class="w-full flex items-center space-x-3 px-4 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 transition">
+                        <i class="fa-solid fa-users-gear w-5"></i>
+                        <span>គ្រប់គ្រងបញ្ជីឈ្មោះគ្រូ</span>
+                    </button>
+                    <button onclick="switchTab('reports')" id="nav-reports" class="w-full flex items-center space-x-3 px-4 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 transition">
+                        <i class="fa-solid fa-chart-pie w-5"></i>
+                        <span>របាយការណ៍សង្ខេប</span>
+                    </button>
+                </nav>
+            </div>
+
+            <!-- School Status Card -->
+            <div class="bg-white rounded-xl shadow-sm p-4 border border-slate-200 text-xs space-y-2">
+                <div class="font-semibold text-slate-700 flex items-center justify-between">
+                    <span>ទីតាំងសាលា (Geofence)</span>
+                    <span id="radiusBadge" class="bg-green-100 text-green-700 px-2 py-0.5 rounded font-bold">30 ម៉ែត្រ</span>
+                </div>
+                <p class="text-slate-500" id="schoolCoordsText">កំពុងផ្ទុកកូអរដោនេសាលា...</p>
+                <div class="pt-2 border-t border-slate-100 flex items-center justify-between">
+                    <span id="gpsStatusText" class="text-amber-600 font-medium">មិនទាន់ពិនិត្យ GPS</span>
+                    <button onclick="checkGPSLocation()" class="bg-slate-800 text-white px-2.5 py-1 rounded hover:bg-slate-700 transition">စစ်ဆေး GPS</button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Content Area -->
+        <section class="lg:col-span-3 space-y-6">
+            
+            <!-- TAB 1: Attendance Marking -->
+            <div id="tab-attendance" class="space-y-6">
+                <!-- Select Teacher Card -->
+                <div class="bg-white rounded-xl shadow-sm p-5 border border-slate-200">
+                    <h2 class="text-base font-bold text-slate-800 mb-3"><i class="fa-solid fa-user-check text-indigo-600 mr-2"></i>ជ្រើសរើសឈ្មោះលោកគ្រូ/អ្នកគ្រូដើម្បីចុះវត្តមាន</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-600 mb-1">ឈ្មោះលោកគ្រូអ្នកគ្រូ</label>
+                            <select id="selectTeacher" onchange="onSelectTeacherChange()" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                                <option value="">-- ជ្រើសរើសឈ្មោះ --</option>
+                            </select>
+                        </div>
+                        <div class="text-sm text-slate-500 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                            <div class="flex justify-between"><span>កាលបរិច្ឆេទ៖</span> <strong id="currentDateDisplay" class="text-slate-700">-</strong></div>
+                            <div class="flex justify-between"><span>ម៉ោងបច្ចុប្បន្ន៖</span> <strong id="currentTimeDisplay" class="text-slate-700">-</strong></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Attendance Card -->
+                <div id="attendanceActionCard" class="bg-white rounded-xl shadow-sm p-5 border border-slate-200 opacity-60 pointer-events-none transition">
+                    <h2 class="text-base font-bold text-slate-800 mb-3"><i class="fa-solid fa-location-crosshairs text-indigo-600 mr-2"></i>ស្ថានភាពទីតាំង និងចុះវត្តមាន</h2>
+                    
+                    <div id="distanceAlertBox" class="mb-4 p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm flex items-start space-x-2">
+                        <i class="fa-solid fa-triangle-exclamation mt-0.5"></i>
+                        <div>
+                            <strong>ការជូនដំណឹង៖</strong> សូមចុចប៊ូតុង "ពិនិត្យ GPS" នៅផ្នែកខាងឆ្វេង ឬជ្រើសរើសឈ្មោះគ្រូមុននឹងចុះវត្តមាន ដើម្បីប្រព័ន្ធផ្ទៀងផ្ទាត់ចម្ងាយ ៣០ម៉ែត្រ។
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+                        <button onclick="submitAttendance('វត្តមាន')" class="flex flex-col items-center justify-center p-3 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition font-medium text-sm">
+                            <i class="fa-solid fa-circle-check text-xl mb-1"></i>
+                            <span>វត្តមាន</span>
+                        </button>
+                        <button onclick="submitAttendance('មកយឺត')" class="flex flex-col items-center justify-center p-3 rounded-xl border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 transition font-medium text-sm">
+                            <i class="fa-solid fa-clock text-xl mb-1"></i>
+                            <span>មកយឺត</span>
+                        </button>
+                        <button onclick="submitAttendance('សុំច្បាប់')" class="flex flex-col items-center justify-center p-3 rounded-xl border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 transition font-medium text-sm">
+                            <i class="fa-solid fa-envelope-open-text text-xl mb-1"></i>
+                            <span>សុំច្បាប់</span>
+                        </button>
+                        <button onclick="submitAttendance('ចុះបេសកកម្ម')" class="flex flex-col items-center justify-center p-3 rounded-xl border border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100 transition font-medium text-sm">
+                            <i class="fa-solid fa-briefcase text-xl mb-1"></i>
+                            <span>ចុះបេសកកម្ម</span>
+                        </button>
+                        <button onclick="submitAttendance('ជាប់ប្រជុំ')" class="flex flex-col items-center justify-center p-3 rounded-xl border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition font-medium text-sm">
+                            <i class="fa-solid fa-users text-xl mb-1"></i>
+                            <span>ជាប់ប្រជុំ</span>
+                        </button>
+                        <button onclick="submitAttendance('ថ្នាក់រៀនក្រៅម៉ោង')" class="flex flex-col items-center justify-center p-3 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 transition font-medium text-sm">
+                            <i class="fa-solid fa-chalkboard-user text-xl mb-1"></i>
+                            <span>ថ្នាក់រៀនក្រៅម៉ោង</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Today Summary Table -->
+                <div class="bg-white rounded-xl shadow-sm p-5 border border-slate-200">
+                    <h3 class="font-bold text-slate-800 mb-3">បញ្ជីចុះវត្តមានថ្ងៃនេះ</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-slate-50 text-slate-600 border-b border-slate-200">
+                                <tr>
+                                    <th class="p-3">ល.រ</th>
+                                    <th class="p-3">ឈ្មោះលោកគ្រូ/អ្នកគ្រូ</th>
+                                    <th class="p-3">ម៉ោងចុះ</th>
+                                    <th class="p-3">ស្ថានភាព</th>
+                                    <th class="p-3">ចម្ងាយ GPS</th>
+                                </tr>
+                            </thead>
+                            <tbody id="todayAttendanceTableBody" class="divide-y divide-slate-100">
+                                <tr><td colspan="5" class="p-4 text-center text-slate-400">មិនទាន់มีข้อมูลចុះវត្តមានថ្ងៃនេះ</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: History -->
+            <div id="tab-history" class="space-y-6 hidden">
+                <div class="bg-white rounded-xl shadow-sm p-5 border border-slate-200">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
+                        <h2 class="text-base font-bold text-slate-800"><i class="fa-solid fa-clock-rotate-left text-indigo-600 mr-2"></i>ប្រវត្តិវត្តមានតាមកាលបរិច្ឆេទ</h2>
+                        <div class="flex items-center space-x-2 w-full md:w-auto">
+                            <input type="date" id="filterDate" onchange="loadHistoryData()" class="border border-slate-300 rounded-lg px-3 py-1.5 text-sm outline-none">
+                            <button onclick="exportHistoryCSV()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-sm transition"><i class="fa-solid fa-file-excel mr-1"></i> Export Excel</button>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-slate-50 text-slate-600 border-b border-slate-200">
+                                <tr>
+                                    <th class="p-3">កាលបរិច្ឆេទ</th>
+                                    <th class="p-3">ឈ្មោះ</th>
+                                    <th class="p-3">ម៉ោង</th>
+                                    <th class="p-3">ស្ថានភាព</th>
+                                    <th class="p-3">ចម្ងាយ</th>
+                                </tr>
+                            </thead>
+                            <tbody id="historyTableBody" class="divide-y divide-slate-100">
+                                <tr><td colspan="5" class="p-4 text-center text-slate-400">សូមជ្រើសរើសថ្ងៃដើម្បីមើលប្រវត្តិ</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 3: Teachers Management -->
+            <div id="tab-teachers" class="space-y-6 hidden">
+                <div class="bg-white rounded-xl shadow-sm p-5 border border-slate-200">
+                    <h2 class="text-base font-bold text-slate-800 mb-4"><i class="fa-solid fa-users-gear text-indigo-600 mr-2"></i>បន្ថែម ឬកែប្រែបញ្ជីឈ្មោះលោកគ្រូអ្នកគ្រូ</h2>
+                    
+                    <form id="teacherForm" onsubmit="saveTeacher(event)" class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6 p-4 bg-slate-50 rounded-xl border border-slate-200">
+                        <input type="hidden" id="editTeacherIndex" value="">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-600 mb-1">ឈ្មោះពេញ</label>
+                            <input type="text" id="inputTeacherName" required placeholder="ឧ. ឈិន សុខន" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none bg-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-600 mb-1">មុខវិជ្ជាបង្រៀន / តួនាទី</label>
+                            <input type="text" id="inputTeacherSub" required placeholder="ឧ. គណិតវិទ្យា" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none bg-white">
+                        </div>
+                        <div class="flex items-end space-x-2">
+                            <button type="submit" id="saveTeacherBtn" class="flex-grow bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">រក្សាទុក</button>
+                            <button type="button" id="cancelEditBtn" onclick="resetTeacherForm()" class="hidden bg-slate-300 hover:bg-slate-400 text-slate-700 px-3 py-2 rounded-lg text-sm transition">បោះបង់</button>
+                        </div>
+                    </form>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-slate-50 text-slate-600 border-b border-slate-200">
+                                <tr>
+                                    <th class="p-3">ល.រ</th>
+                                    <th class="p-3">ឈ្មោះលោកគ្រូ/អ្នកគ្រូ</th>
+                                    <th class="p-3">មុខវិជ្ជា/តួនាទី</th>
+                                    <th class="p-3 text-center">សកម្មភាព</th>
+                                </tr>
+                            </thead>
+                            <tbody id="teachersTableBody" class="divide-y divide-slate-100">
+                                <tr><td colspan="4" class="p-4 text-center text-slate-400">មិនទាន់มีข้อมูลគ្រូ</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 4: Reports -->
+            <div id="tab-reports" class="space-y-6 hidden">
+                <div class="bg-white rounded-xl shadow-sm p-5 border border-slate-200">
+                    <h2 class="text-base font-bold text-slate-800 mb-4"><i class="fa-solid fa-chart-pie text-indigo-600 mr-2"></i>របាយការណ៍សង្ខេបប្រចាំខែ</h2>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                        <div class="bg-emerald-50 border border-emerald-200 p-4 rounded-xl text-center">
+                            <div class="text-xs text-emerald-600 font-medium">វត្តមានសរុប</div>
+                            <div class="text-2xl font-bold text-emerald-700 mt-1" id="statPresent">0</div>
+                        </div>
+                        <div class="bg-amber-50 border border-amber-200 p-4 rounded-xl text-center">
+                            <div class="text-xs text-amber-600 font-medium">មកយឺតសរុប</div>
+                            <div class="text-2xl font-bold text-amber-700 mt-1" id="statLate">0</div>
+                        </div>
+                        <div class="bg-blue-50 border border-blue-200 p-4 rounded-xl text-center">
+                            <div class="text-xs text-blue-600 font-medium">សុំច្បាប់សរុប</div>
+                            <div class="text-2xl font-bold text-blue-700 mt-1" id="statLeave">0</div>
+                        </div>
+                        <div class="bg-purple-50 border border-purple-200 p-4 rounded-xl text-center">
+                            <div class="text-xs text-purple-600 font-medium">បេសកកម្ម/ប្រជុំ</div>
+                            <div class="text-2xl font-bold text-purple-700 mt-1" id="statMission">0</div>
+                        </div>
+                    </div>
+                    <p class="text-xs text-slate-500 text-center">ទិន្នន័យត្រូវបានធ្វើបច្ចុប្បន្នភាពស្វ័យប្រវត្តពីប្រព័ន្ធ Realtime Database។</p>
+                </div>
+            </div>
+
+        </section>
+    </main>
+
+    <!-- Config Modal -->
+    <div id="configModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl border border-slate-200 space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <h3 class="font-bold text-slate-800 text-base"><i class="fa-solid fa-gear text-indigo-600 mr-2"></i>កំណត់ទីតាំងសាលា & Firebase</h3>
+                <button onclick="toggleConfigModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="space-y-3 text-sm">
+                <div>
+                    <label class="block text-xs font-medium text-slate-600 mb-1">Latitude សាលា</label>
+                    <input type="number" step="any" id="schoolLat" class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-600 mb-1">Longitude សាលា</label>
+                    <input type="number" step="any" id="schoolLng" class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-600 mb-1">រង្វង់ចម្ងាយអនុញ្ញាត (ម៉ែត្រ)</label>
+                    <input type="number" id="schoolRadius" class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none" value="30">
+                </div>
+                <button onclick="getCurrentLocationAsSchool()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 rounded-lg text-sm font-medium transition"><i class="fa-solid fa-location-crosshairs mr-1"></i> យកទីតាំងបច្ចុប្បន្នជាទីតាំងសាលា</button>
+            </div>
+            <div class="border-t border-slate-100 pt-3 flex justify-end space-x-2">
+                <button onclick="toggleConfigModal()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium transition">បោះបង់</button>
+                <button onclick="saveSchoolConfig()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">រក្សាទុក</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Default Local Mock Config & Firebase fallback
+        let schoolConfig = {
+            lat: 13.8500, // ឧទាហរណ៍ ព្រះវិហារ / ជាំក្សាន្ត
+            lng: 104.9800,
+            radius: 30
+        };
+
+        let teachers = [
+            { name: "ជឿត វ៉ាន់សឿន", sub: "ព័ត៌មានវិទ្យា" },
+            { name: "ចាន់ សុផល", sub: "គណិតវិទ្យា" },
+            { name: "ហេង សុខា", sub: "ភាសាខ្មែរ" }
+        ];
+
+        let attendanceRecords = [];
+        let currentGPS = { lat: null, lng: null, distance: null, valid: false };
+
+        // Initialize App
+        window.onload = function() {
+            updateDateTime();
+            setInterval(updateDateTime, 1000);
+            loadTeachersToUI();
+            document.getElementById('filterDate').valueAsDate = new Date();
+            updateSchoolConfigUI();
+            checkGPSLocation();
+        };
+
+        function updateDateTime() {
+            const now = new Date();
+            document.getElementById('currentDateDisplay').innerText = now.toLocaleDateString('km-KH');
+            document.getElementById('currentTimeDisplay').innerText = now.toLocaleTimeString('km-KH');
+        }
+
+        function switchTab(tabId) {
+            ['attendance', 'history', 'teachers', 'reports'].forEach(t => {
+                document.getElementById(`tab-${t}`).classList.add('hidden');
+                document.getElementById(`nav-${t}`).className = "w-full flex items-center space-x-3 px-4 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 transition";
+            });
+            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+            document.getElementById(`nav-${tabId}`).className = "w-full flex items-center space-x-3 px-4 py-2.5 rounded-lg text-sm font-medium bg-indigo-50 text-indigo-600 transition";
+            
+            if(tabId === 'history') loadHistoryData();
+            if(tabId === 'reports') loadReportsData();
+        }
+
+        function loadTeachersToUI() {
+            const select = document.getElementById('selectTeacher');
+            select.innerHTML = '<option value="">-- ជ្រើសរើសឈ្មោះ --</option>';
+            teachers.forEach((t, idx) => {
+                select.innerHTML += `<option value="${idx}">${t.name} (${t.sub})</option>`;
+            });
+
+            const tbody = document.getElementById('teachersTableBody');
+            if(teachers.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-slate-400">មិនទាន់มีข้อมูลគ្រូ</td></tr>';
+                return;
+            }
+            tbody.innerHTML = '';
+            teachers.forEach((t, idx) => {
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-50">
+                        <td class="p-3">${idx + 1}</td>
+                        <td class="p-3 font-medium text-slate-800">${t.name}</td>
+                        <td class="p-3 text-slate-600">${t.sub}</td>
+                        <td class="p-3 text-center space-x-2">
+                            <button onclick="editTeacher(${idx})" class="text-blue-600 hover:text-blue-800 text-xs px-2 py-1 bg-blue-50 rounded"><i class="fa-solid fa-pen-to-square mr-1"></i>កែប្រែ</button>
+                            <button onclick="deleteTeacher(${idx})" class="text-rose-600 hover:text-rose-800 text-xs px-2 py-1 bg-rose-50 rounded"><i class="fa-solid fa-trash mr-1"></i>លុប</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        function onSelectTeacherChange() {
+            const val = document.getElementById('selectTeacher').value;
+            const card = document.getElementById('attendanceActionCard');
+            if(val !== "") {
+                const t = teachers[val];
+                document.getElementById('currentUserName').innerText = t.name;
+                document.getElementById('currentUserSub').innerText = t.sub;
+                document.getElementById('userAvatar').innerText = t.name.charAt(0);
+                card.classList.remove('opacity-60', 'pointer-events-none');
+            } else {
+                document.getElementById('currentUserName').innerText = "សូមជ្រើសរើសឈ្មោះ";
+                document.getElementById('currentUserSub').innerText = "គ្រូបង្រៀន";
+                document.getElementById('userAvatar').innerText = "U";
+                card.classList.add('opacity-60', 'pointer-events-none');
+            }
+        }
+
+        // GPS & Geofencing Haversine
+        function checkGPSLocation() {
+            const statusText = document.getElementById('gpsStatusText');
+            statusText.innerText = "កំពុងទាញយក GPS...";
+            if (!navigator.geolocation) {
+                alert("Browser របស់អ្នកไม่รองรับ Geolocation");
+                return;
+            }
+            navigator.geolocation.getCurrentPosition(position => {
+                currentGPS.lat = position.coords.latitude;
+                currentGPS.lng = position.coords.longitude;
+                
+                const dist = calculateDistance(currentGPS.lat, currentGPS.lng, schoolConfig.lat, schoolConfig.lng);
+                currentGPS.distance = Math.round(dist);
+                
+                const alertBox = document.getElementById('distanceAlertBox');
+                if (currentGPS.distance <= schoolConfig.radius) {
+                    currentGPS.valid = true;
+                    statusText.innerText = `อยู่ในរង្វង់ (${currentGPS.distance}ម)`;
+                    statusText.className = "text-emerald-600 font-medium";
+                    alertBox.className = "mb-4 p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm flex items-start space-x-2";
+                    alertBox.innerHTML = `<i class="fa-solid fa-circle-check mt-0.5"></i><div><strong>ជោគជ័យ៖</strong> អ្នកស្ថិតនៅចម្ងាយ ${currentGPS.distance} ម៉ែត្រពីសាលា (អនុញ្ញាតចុះវត្តមាន)។</div>`;
+                } else {
+                    currentGPS.valid = false;
+                    statusText.innerText = `ឆ្ងាយពេក (${currentGPS.distance}ម)`;
+                    statusText.className = "text-rose-600 font-medium";
+                    alertBox.className = "mb-4 p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-sm flex items-start space-x-2";
+                    alertBox.innerHTML = `<i class="fa-solid fa-triangle-exclamation mt-0.5"></i><div><strong>អាសយដ្ឋានក្រៅបរិវេណ៖</strong> អ្នកនៅឆ្ងាយពីសាលា ${currentGPS.distance} ម៉ែត្រ (លើស ${schoolConfig.radius}ម)។ ប្រព័ន្ធអនុញ្ញាតเฉพาะ "សុំច្បាប់" ឬ "បេសកកម្ម"។</div>`;
+                }
+            }, error => {
+                statusText.innerText = "ข้อผิดพลาด GPS";
+                alert("មិនអាចទាញយកទីតាំង GPS បានទេ៖ " + error.message);
+            }, { enableHighAccuracy: true });
+        }
+
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371e3; // metres
+            const φ1 = lat1 * Math.PI/180;
+            const φ2 = lat2 * Math.PI/180;
+            const Δφ = (lat2-lat1) * Math.PI/180;
+            const Δλ = (lon2-lon1) * Math.PI/180;
+
+            const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                      Math.cos(φ1) * Math.cos(φ2) *
+                      Math.sin(Δλ/2) * Math.sin(Δλ/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+
+        function submitAttendance(status) {
+            const teacherIdx = document.getElementById('selectTeacher').value;
+            if(teacherIdx === "") {
+                alert("សូមជ្រើសរើសឈ្មោះលោកគ្រូអ្នកគ្រូមុនសិន!");
+                return;
+            }
+
+            if(!currentGPS.valid && status === 'វត្តមាន') {
+                if(!confirm(`អ្នកនៅឆ្ងាយពីសាលា (${currentGPS.distance}ម)។ តើអ្នកពិតជាចង់កត់ត្រាជម្រើស "${status}" មែនទេ?`)) {
+                    return;
+                }
+            }
+
+            const teacher = teachers[teacherIdx];
+            const now = new Date();
+            const record = {
+                date: now.toISOString().split('T')[0],
+                time: now.toLocaleTimeString('km-KH'),
+                name: teacher.name,
+                sub: teacher.sub,
+                status: status,
+                distance: currentGPS.distance !== null ? currentGPS.distance + 'ម' : 'ไม่ทราบ'
+            };
+
+            attendanceRecords.push(record);
+            alert(`បានចុះឈ្មោះ "${status}" ជូន ${teacher.name} ដោយជោគជ័យ!`);
+            renderTodayAttendance();
+        }
+
+        function renderTodayAttendance() {
+            const todayStr = new Date().toISOString().split('T')[0];
+            const todayList = attendanceRecords.filter(r => r.date === todayStr);
+            const tbody = document.getElementById('todayAttendanceTableBody');
+            
+            if(todayList.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-slate-400">មិនទាន់มีข้อมูลចុះវត្តមានថ្ងៃនេះ</td></tr>';
+                return;
+            }
+            tbody.innerHTML = '';
+            todayList.forEach((r, idx) => {
+                let badgeColor = "bg-emerald-100 text-emerald-700";
+                if(r.status === 'មកយឺត') badgeColor = "bg-amber-100 text-amber-700";
+                if(r.status === 'សុំច្បាប់') badgeColor = "bg-blue-100 text-blue-700";
+                if(r.status === 'ចុះបេសកកម្ម') badgeColor = "bg-purple-100 text-purple-700";
+                if(r.status === 'ជាប់ប្រជុំ') badgeColor = "bg-indigo-100 text-indigo-700";
+                if(r.status === 'ថ្នាក់រៀនក្រៅម៉ោង') badgeColor = "bg-rose-100 text-rose-700";
+
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-50">
+                        <td class="p-3">${idx + 1}</td>
+                        <td class="p-3 font-medium text-slate-800">${r.name} <span class="text-xs text-slate-400 font-normal">(${r.sub})</span></td>
+                        <td class="p-3 text-slate-600">${r.time}</td>
+                        <td class="p-3"><span class="px-2.5 py-1 rounded-full text-xs font-semibold ${badgeColor}">${r.status}</span></td>
+                        <td class="p-3 text-slate-500">${r.distance}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        function loadHistoryData() {
+            const dateVal = document.getElementById('filterDate').value;
+            const list = attendanceRecords.filter(r => r.date === dateVal);
+            const tbody = document.getElementById('historyTableBody');
+            if(list.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-slate-400">ពុំមានទិន្នន័យសម្រាប់ថ្ងៃនេះទេ</td></tr>';
+                return;
+            }
+            tbody.innerHTML = '';
+            list.forEach(r => {
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-50">
+                        <td class="p-3">${r.date}</td>
+                        <td class="p-3 font-medium">${r.name}</td>
+                        <td class="p-3">${r.time}</td>
+                        <td class="p-3"><span class="px-2 py-0.5 rounded text-xs font-semibold bg-slate-100 text-slate-700">${r.status}</span></td>
+                        <td class="p-3 text-slate-500">${r.distance}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        function saveTeacher(e) {
+            e.preventDefault();
+            const name = document.getElementById('inputTeacherName').value;
+            const sub = document.getElementById('inputTeacherSub').value;
+            const editIdx = document.getElementById('editTeacherIndex').value;
+
+            if(editIdx === "") {
+                teachers.push({ name, sub });
+                alert("បានបន្ថែមឈ្មោះគ្រូថ្មីដោយជោគជ័យ!");
+            } else {
+                teachers[editIdx] = { name, sub };
+                alert("បានកែប្រែព័ត៌មានគ្រូដោយជោគជ័យ!");
+                resetTeacherForm();
+            }
+
+            document.getElementById('inputTeacherName').value = '';
+            document.getElementById('inputTeacherSub').value = '';
+            loadTeachersToUI();
+        }
+
+        function editTeacher(idx) {
+            const t = teachers[idx];
+            document.getElementById('inputTeacherName').value = t.name;
+            document.getElementById('inputTeacherSub').value = t.sub;
+            document.getElementById('editTeacherIndex').value = idx;
+            document.getElementById('saveTeacherBtn').innerText = "រក្សាទុកការកែប្រែ";
+            document.getElementById('cancelEditBtn').classList.remove('hidden');
+        }
+
+        function resetTeacherForm() {
+            document.getElementById('inputTeacherName').value = '';
+            document.getElementById('inputTeacherSub').value = '';
+            document.getElementById('editTeacherIndex').value = '';
+            document.getElementById('saveTeacherBtn').innerText = "រក្សាទុក";
+            document.getElementById('cancelEditBtn').classList.add('hidden');
+        }
+
+        function deleteTeacher(idx) {
+            if(confirm(`តើអ្នកពិតជាចង់លុបឈ្មោះ ${teachers[idx].name} មែនទេ?`)) {
+                teachers.splice(idx, 1);
+                loadTeachersToUI();
+            }
+        }
+
+        function loadReportsData() {
+            document.getElementById('statPresent').innerText = attendanceRecords.filter(r => r.status === 'វត្តមាន').length;
+            document.getElementById('statLate').innerText = attendanceRecords.filter(r => r.status === 'មកយឺត').length;
+            document.getElementById('statLeave').innerText = attendanceRecords.filter(r => r.status === 'សុំច្បាប់').length;
+            document.getElementById('statMission').innerText = attendanceRecords.filter(r => ['ចុះបេសកកម្ម', 'ជាប់ប្រជុំ', 'ថ្នាក់រៀនក្រៅម៉ោង'].includes(r.status)).length;
+        }
+
+        function toggleConfigModal() {
+            const modal = document.getElementById('configModal');
+            modal.classList.toggle('hidden');
+            if(!modal.classList.contains('hidden')) {
+                document.getElementById('schoolLat').value = schoolConfig.lat;
+                document.getElementById('schoolLng').value = schoolConfig.lng;
+                document.getElementById('schoolRadius').value = schoolConfig.radius;
+            }
+        }
+
+        function getCurrentLocationAsSchool() {
+            if(navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(pos => {
+                    document.getElementById('schoolLat').value = pos.coords.latitude;
+                    document.getElementById('schoolLng').value = pos.coords.longitude;
+                    alert("បានទាញយកកូអរដោនេបច្ចុប្បន្នជាទីតាំងសាលារួចរាល់!");
+                });
+            }
+        }
+
+        function saveSchoolConfig() {
+            schoolConfig.lat = parseFloat(document.getElementById('schoolLat').value);
+            schoolConfig.lng = parseFloat(document.getElementById('schoolLng').value);
+            schoolConfig.radius = parseInt(document.getElementById('schoolRadius').value);
+            updateSchoolConfigUI();
+            toggleConfigModal();
+            alert("បានរក្សាទុកការកំណត់ទីតាំងសាលាដោយជោគជ័យ!");
+        }
+
+        function updateSchoolConfigUI() {
+            document.getElementById('schoolCoordsText').innerText = `Lat: ${schoolConfig.lat.toFixed(4)}, Lng: ${schoolConfig.lng.toFixed(4)}`;
+            document.getElementById('radiusBadge').innerText = `${schoolConfig.radius} ម៉ែត្រ`;
+        }
+
+        function exportHistoryCSV() {
+            if(attendanceRecords.length === 0) {
+                alert("មិនទាន់មានទិន្នន័យสำหรับ Export ទេ!");
+                return;
+            }
+            let csv = 'Date,Name,Subject,Status,Distance\n';
+            attendanceRecords.forEach(r => {
+                csv += `${r.date},"${r.name}","${r.sub}",${r.status},${r.distance}\n`;
+            });
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = "teacher_attendance_report.csv";
+            link.click();
+        }
+    </script>
+</body>
+</html>
